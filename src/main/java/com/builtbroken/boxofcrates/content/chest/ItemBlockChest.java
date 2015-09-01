@@ -1,4 +1,4 @@
-package com.builtbroken.boxofcrates.chest;
+package com.builtbroken.boxofcrates.content.chest;
 
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemBlock;

@@ -1,4 +1,4 @@
-package com.builtbroken.boxofcrates.chest;
+package com.builtbroken.boxofcrates.content.chest;
 
 import cpw.mods.fml.client.FMLClientHandler;
 import net.minecraft.item.ItemStack;

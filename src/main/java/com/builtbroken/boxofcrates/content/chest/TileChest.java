@@ -1,6 +1,13 @@
-package com.builtbroken.boxofcrates.chest;
+package com.builtbroken.boxofcrates.content.chest;
 
+import com.builtbroken.mc.core.Engine;
+import com.builtbroken.mc.core.network.IPacketIDReceiver;
+import com.builtbroken.mc.core.network.packet.PacketTile;
+import com.builtbroken.mc.core.network.packet.PacketType;
 import com.builtbroken.mc.prefab.items.ItemStackWrapper;
+import com.builtbroken.mc.prefab.tile.entity.TileEntityInv;
+import cpw.mods.fml.common.network.ByteBufUtils;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.ContainerChest;
 import net.minecraft.inventory.IInventory;
@@ -17,7 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 
 
-public class TileChest extends TileInv
+public class TileChest extends TileEntityInv implements IPacketIDReceiver
 {
     //TODO have custom name render on outside of chest
     /** Determines if the check for adjacent chests has taken place. */
@@ -65,7 +72,29 @@ public class TileChest extends TileInv
                 filterBySideMap.put(side, list);
                 if (!worldObj.isRemote)
                 {
-                    //TODO send packet
+                    Engine.instance.packetHandler.sendToAllAround(new PacketTile(this, 1, (byte) side.ordinal(), stack), this);
+                }
+            }
+        }
+    }
+
+    public void removeFilterForSide(ForgeDirection side, ItemStack stack)
+    {
+        if (stack != null && filterBySideMap.containsKey(side))
+        {
+            List<ItemStackWrapper> list = filterBySideMap.get(side);
+            if (list != null && list.contains(stack))
+            {
+                list.remove(stack);
+                if (!worldObj.isRemote)
+                    Engine.instance.packetHandler.sendToAllAround(new PacketTile(this, 2, (byte) side.ordinal(), stack), this);
+                if (!list.isEmpty())
+                {
+                    filterBySideMap.put(side, list);
+                }
+                else
+                {
+                    filterBySideMap.remove(side);
                 }
             }
         }
@@ -75,10 +104,13 @@ public class TileChest extends TileInv
     {
         if (stack == null)
         {
-            filterBySlot.remove(slot);
-            if (!worldObj.isRemote)
+            if (filterBySideMap.containsKey(slot))
             {
-                //TODO send packet
+                filterBySlot.remove(slot);
+                if (!worldObj.isRemote)
+                {
+                    Engine.instance.packetHandler.sendToAllAround(new PacketTile(this, 3, slot, stack), this);
+                }
             }
         }
         else
@@ -86,15 +118,58 @@ public class TileChest extends TileInv
             filterBySlot.put(slot, new ItemStackWrapper(stack));
             if (!worldObj.isRemote)
             {
-                //TODO send packet
+                Engine.instance.packetHandler.sendToAllAround(new PacketTile(this, 4, slot), this);
             }
         }
     }
 
     @Override
+    public boolean read(ByteBuf buf, int id, EntityPlayer player, PacketType type)
+    {
+        if (worldObj.isRemote)
+        {
+            //Desc packet
+            if (id == 0)
+            {
+                return true;
+            }
+            //Gui Update packet
+            else if (id == 5)
+            {
+                return true;
+            }
+            //Add filter to side
+            else if (id == 1)
+            {
+                addFilterForSide(ForgeDirection.getOrientation(buf.readByte()), ByteBufUtils.readItemStack(buf));
+                return true;
+            }
+            //Remove filter from side
+            else if (id == 2)
+            {
+                removeFilterForSide(ForgeDirection.getOrientation(buf.readByte()), ByteBufUtils.readItemStack(buf));
+                return true;
+            }
+            //Set filter for slot, stack
+            else if (id == 3)
+            {
+                setFilterForSlot(buf.readInt(), ByteBufUtils.readItemStack(buf));
+                return true;
+            }
+            //Set filter for slot, null
+            else if (id == 4)
+            {
+                setFilterForSlot(buf.readInt(), null);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
     public String getInventoryName()
     {
-        return this.hasCustomInventoryName() ? this.customName : "container.chest";
+        return this.hasCustomInventoryName() ? this.customName : "container.chest.filtered";
     }
 
     @Override

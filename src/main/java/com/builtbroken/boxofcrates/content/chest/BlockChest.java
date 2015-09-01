@@ -1,4 +1,4 @@
-package com.builtbroken.boxofcrates.chest;
+package com.builtbroken.boxofcrates.content.chest;
 
 import com.builtbroken.boxofcrates.BoxOfCrates;
 import cpw.mods.fml.relauncher.Side;

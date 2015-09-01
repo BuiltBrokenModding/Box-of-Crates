@@ -1,8 +1,8 @@
 package com.builtbroken.boxofcrates;
 
-import com.builtbroken.boxofcrates.chest.BlockChest;
-import com.builtbroken.boxofcrates.chest.ItemBlockChest;
-import com.builtbroken.boxofcrates.chest.TileChest;
+import com.builtbroken.boxofcrates.content.chest.BlockChest;
+import com.builtbroken.boxofcrates.content.chest.ItemBlockChest;
+import com.builtbroken.boxofcrates.content.chest.TileChest;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
@@ -27,7 +27,7 @@ public class BoxOfCrates
 
     public static Logger LOGGER;
 
-    public static Block blockChest;
+    public static Block blockFilteredChest;
 
 
     @Mod.EventHandler
@@ -35,8 +35,8 @@ public class BoxOfCrates
     {
         LOGGER = LogManager.getLogger("BoxOfCrates");
 
-        blockChest = new BlockChest();
-        GameRegistry.registerBlock(blockChest, ItemBlockChest.class, "filteredChest");
+        blockFilteredChest = new BlockChest();
+        GameRegistry.registerBlock(blockFilteredChest, ItemBlockChest.class, "filteredChest");
         GameRegistry.registerTileEntity(TileChest.class, "filteredChest");
 
         proxy.preInit();
@@ -51,7 +51,7 @@ public class BoxOfCrates
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event)
     {
-        GameRegistry.addShapedRecipe(new ItemStack(blockChest), "rgr", "ece", "rgr", 'c', Blocks.chest, 'r', Items.redstone, 'g', Items.gold_nugget);
+        GameRegistry.addShapedRecipe(new ItemStack(blockFilteredChest), "rgr", "ece", "rgr", 'c', Blocks.chest, 'r', Items.redstone, 'g', Items.gold_nugget);
         proxy.postInit();
     }
 }

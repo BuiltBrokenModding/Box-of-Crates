@@ -1,8 +1,8 @@
 package com.builtbroken.boxofcrates;
 
-import com.builtbroken.boxofcrates.chest.ItemChestRender;
-import com.builtbroken.boxofcrates.chest.RenderChest;
-import com.builtbroken.boxofcrates.chest.TileChest;
+import com.builtbroken.boxofcrates.content.chest.ItemChestRender;
+import com.builtbroken.boxofcrates.content.chest.RenderChest;
+import com.builtbroken.boxofcrates.content.chest.TileChest;
 import cpw.mods.fml.client.registry.ClientRegistry;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.MinecraftForgeClient;
@@ -17,6 +17,6 @@ public class ClientProxy extends CommonProxy
     {
         super.init();
         ClientRegistry.bindTileEntitySpecialRenderer(TileChest.class, new RenderChest());
-        MinecraftForgeClient.registerItemRenderer(Item.getItemFromBlock(BoxOfCrates.blockChest), new ItemChestRender());
+        MinecraftForgeClient.registerItemRenderer(Item.getItemFromBlock(BoxOfCrates.blockFilteredChest), new ItemChestRender());
     }
 }
