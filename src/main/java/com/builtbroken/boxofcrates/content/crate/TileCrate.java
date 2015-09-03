@@ -1,24 +1,38 @@
 package com.builtbroken.boxofcrates.content.crate;
 
 import com.builtbroken.boxofcrates.BoxOfCrates;
+import com.builtbroken.mc.lib.helper.LanguageUtility;
+import com.builtbroken.mc.lib.transform.vector.Pos;
 import com.builtbroken.mc.prefab.tile.Tile;
-import com.builtbroken.mc.prefab.tile.TileInv;
 import net.minecraft.block.material.Material;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ChatComponentText;
+import net.minecraftforge.common.util.ForgeDirection;
+
+import java.util.*;
 
 /**
  * Basic inventory that stores one type of item but at a large volume
  * Created by Dark on 9/1/2015.
  */
-public class TileCrate extends TileInv implements ISidedInventory
+public class TileCrate extends Tile implements ISidedInventory
 {
-    //TODO process inventory to get next empty slot so there is no need for creating a fake inventory
-    protected int nextEmptySlot = 0;
+    /** Slot ID for the next slot with room to store items. -1 means that the inventory has not been initialized for data. -2 means the inventory has no free slots. */
+    protected int nextEmptySlot = -1;
+    /** Current number of items stored in the inventory. Its mainly used for packet updates and display data */
     protected int currentStackSize = 0;
+    /** Current ItemStack in the crate. Stack size is always 1 and its only used for logic checks. */
     protected ItemStack currentItem = null;
 
+    /** Tier/Type of crate */
     private CrateType crateType = CrateType.BASE;
+
+    /** Main inventory map */
+    private HashMap<Integer, ItemStack> inventory = new HashMap();
+    /** Set of slots that have space to add items */
+    private SortedSet<Integer> slotsWithRoomStack = new TreeSet();
 
     public TileCrate()
     {
@@ -30,7 +44,337 @@ public class TileCrate extends TileInv implements ISidedInventory
     {
         super.firstTick();
         this.crateType = CrateType.values()[world().getBlockMetadata(xi(), yi(), zi())];
-        this.slots_$eq(crateType.size);
+    }
+
+    @Override
+    protected boolean onPlayerRightClick(EntityPlayer player, int side, Pos hit)
+    {
+        if (!super.onPlayerRightClick(player, side, hit))
+        {
+            ForgeDirection dir = ForgeDirection.getOrientation(side);
+            ItemStack heldItem = player.getHeldItem() != null ? player.getHeldItem().copy() : null;
+            boolean contentsChanged = false;
+
+            if (dir != ForgeDirection.SOUTH)
+            {
+                //Add Items
+                if (dir == ForgeDirection.NORTH || hit.y() >= 4.9)
+                {
+                    if (isValid(heldItem))
+                    {
+                        int roomLeft = (getSizeInventory() * getInventoryStackLimit()) - currentStackSize;
+                        if (roomLeft != 0)
+                        {
+                            if (isServer())
+                            {
+                                //Creative mode mass fill option
+                                if (dir == ForgeDirection.NORTH && player.capabilities.isCreativeMode)
+                                {
+                                    currentStackSize = getSizeInventory() * getInventoryStackLimit();
+                                    contentsChanged = true;
+                                    player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.creativeFilled")));
+                                }
+                                else
+                                {
+                                    int heldStackSize = player.isSneaking() ? 1 : heldItem.stackSize;
+                                    if (heldStackSize > roomLeft)
+                                    {
+                                        heldItem.stackSize -= roomLeft;
+                                        increaseCount(roomLeft);
+                                    }
+                                    else
+                                    {
+                                        heldItem.stackSize -= heldStackSize;
+                                        increaseCount(heldStackSize);
+                                    }
+                                    if (heldItem.stackSize > 0)
+                                        player.inventory.setInventorySlotContents(player.inventory.currentItem, heldItem);
+                                    else
+                                        player.inventory.setInventorySlotContents(player.inventory.currentItem, null);
+                                    player.inventoryContainer.detectAndSendChanges();
+                                    contentsChanged = true;
+                                }
+                            }
+                        }
+                        else if (isServer())
+                        {
+                            player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.error.full")));
+                        }
+                    }
+                    else if (isServer())
+                    {
+                        player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.error.invalidStack")));
+                    }
+                }
+                //Remove Items
+                else if (currentItem != null && currentStackSize > 0)
+                {
+                    //Fill held item
+                    if (isValid(heldItem) && heldItem.stackSize < heldItem.getMaxStackSize() || heldItem == null)
+                    {
+                        int itemsToRemove = player.isSneaking() ? 1 : currentItem.getMaxStackSize() - heldItem.getMaxStackSize();
+                        if (itemsToRemove <= currentStackSize)
+                        {
+                            heldItem.stackSize += itemsToRemove;
+                            player.inventoryContainer.detectAndSendChanges();
+                            decreaseCount(itemsToRemove);
+                        }
+                        else
+                        {
+                            heldItem.stackSize += currentStackSize;
+                            player.inventoryContainer.detectAndSendChanges();
+                            clearInventory();
+                        }
+                    }
+                    //Add to inventory
+                    else
+                    {
+
+                    }
+                }
+
+                if (contentsChanged)
+                {
+                    if (isServer())
+                    {
+                        //TODO send packet
+                    }
+                    else
+                    {
+                        //TODO maybe call a re-render of the tile?
+                    }
+                }
+                return true;
+            }
+            else
+            {
+                if (isServer())
+                    player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.bottom.error")));
+                return true;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Adds items to inventory in the first slots it can find.
+     * Make sure that the currentItem matches the input item as this
+     * doesn't check anything. It only iterates threw free slots filling
+     * the slots to cap.
+     *
+     * @param count - number of items to add
+     */
+    public void increaseCount(int count)
+    {
+        if (currentItem != null)
+        {
+            this.currentStackSize += count;
+            while (count > 0)
+            {
+                int slot = getNextEmptySlot();
+                if (slot == -2)
+                    break;
+                ItemStack slotContent = getStackInSlot(slot);
+                int roomLeft = slotContent != null ? getInventoryStackLimit() - slotContent.stackSize : getInventoryStackLimit();
+            }
+        }
+    }
+
+    public void decreaseCount(int count)
+    {
+        if (count > 0)
+        {
+            if (currentItem != null)
+            {
+                currentStackSize -= count;
+                if (currentStackSize > 0)
+                {
+                    int itemsToRemove = count;
+                    Iterator<Map.Entry<Integer, ItemStack>> it = inventory.entrySet().iterator();
+                    while (it.hasNext())
+                    {
+                        Map.Entry<Integer, ItemStack> entry = it.next();
+                        if (itemsToRemove == 0)
+                            break; //Done all items removed
+                        if (entry.getValue() == null)
+                        {
+                            it.remove();
+                            slotsWithRoomStack.add(entry.getKey());
+                            if (nextEmptySlot < 0)
+                                nextEmptySlot = entry.getKey();
+                        }
+                        else if (entry.getValue().stackSize <= itemsToRemove)
+                        {
+                            itemsToRemove -= entry.getValue().stackSize;
+                            it.remove();
+                            slotsWithRoomStack.add(entry.getKey());
+                            if (nextEmptySlot < 0)
+                                nextEmptySlot = entry.getKey();
+                        }
+                        else
+                        {
+                            entry.getValue().stackSize -= itemsToRemove;
+                            break; //Done all items removed
+                        }
+                    }
+                }
+                else
+                {
+                    clearInventory();
+                }
+            }
+        }
+    }
+
+    /**
+     * Wipes out all stored data about the inventory
+     */
+    public void clearInventory()
+    {
+        currentItem = null;
+        inventory.clear();
+        slotsWithRoomStack.clear();
+        nextEmptySlot = -1;
+    }
+
+
+    /**
+     * Cleans up the inventory rebuilding it from
+     * the CurrentItem and CurrentStackSize values
+     */
+    public void rebuildEntireInventory()
+    {
+        //Clear inventory for rebuild
+        inventory.clear();
+        slotsWithRoomStack.clear();
+        nextEmptySlot = -1;
+
+        if (currentItem != null && currentStackSize > 0)
+        {
+            //Ensure max inventory limit
+            currentStackSize = Math.min(currentStackSize, getInventoryStackLimit() * getSizeInventory());
+
+            //cache items to go
+            int itemsLeft = currentStackSize;
+            for (int i = 0; i < getSizeInventory(); i++)
+            {
+                if (itemsLeft > 0)
+                {
+                    ItemStack newStack = currentItem.copy();
+                    newStack.stackSize = Math.min(getInventoryStackLimit(), itemsLeft);
+                    inventory.put(i, newStack);
+                    itemsLeft -= newStack.stackSize;
+                    if (i == getSizeInventory() - 1)
+                    {
+                        if (newStack.stackSize == getInventoryStackLimit())
+                            nextEmptySlot = -2;
+                        else
+                            nextEmptySlot = i;
+                    }
+                }
+                else
+                {
+                    if (nextEmptySlot == -1)
+                        nextEmptySlot = i;
+                    slotsWithRoomStack.add(i);
+                }
+            }
+        }
+        else
+        {
+            currentItem = null;
+        }
+    }
+
+    public int getNextEmptySlot()
+    {
+        //Find all empty slots
+        if (nextEmptySlot == -1)
+        {
+            nextEmptySlot = -2;
+            slotsWithRoomStack.clear();
+            for (int i = 0; i < getSizeInventory(); i++)
+            {
+                ItemStack stack = getStackInSlot(i);
+                if (stack == null || stack.stackSize < getSizeInventory())
+                {
+                    if (nextEmptySlot == -1)
+                        nextEmptySlot = i;
+                    if (!slotsWithRoomStack.contains(i))
+                        slotsWithRoomStack.add(i);
+                }
+            }
+        }
+        ItemStack stack = getStackInSlot(nextEmptySlot);
+        if (stack != null && stack.stackSize >= getSizeInventory())
+        {
+            slotsWithRoomStack.remove(nextEmptySlot);
+            nextEmptySlot = -2;
+            Iterator<Integer> it = slotsWithRoomStack.iterator();
+            while (it.hasNext())
+            {
+                int slot = it.next();
+                if (stack == null || stack.stackSize < getSizeInventory())
+                {
+                    nextEmptySlot = slot;
+                    break;
+                }
+                else
+                {
+                    it.remove();
+                }
+            }
+        }
+        return nextEmptySlot;
+    }
+
+    @Override
+    public int getSizeInventory()
+    {
+        return crateType.size;
+    }
+
+    @Override
+    public ItemStack getStackInSlot(int slot)
+    {
+        if (inventory.containsKey(slot))
+        {
+            return inventory.get(slot);
+        }
+        return null;
+    }
+
+    @Override
+    public ItemStack decrStackSize(int slot, int amount)
+    {
+        ItemStack stack = getStackInSlot(slot);
+        if (stack != null && amount != 0)
+        {
+            if (stack.stackSize <= amount)
+            {
+                setInventorySlotContents(slot, null);
+            }
+            else
+            {
+                stack = stack.splitStack(amount);
+                setInventorySlotContents(slot, getStackInSlot(slot));
+            }
+            markDirty();
+            return stack;
+        }
+        return null;
+    }
+
+    @Override
+    public ItemStack getStackInSlotOnClosing(int slot)
+    {
+        ItemStack stack = getStackInSlot(slot);
+        if (stack != null)
+        {
+            inventory.remove(slot);
+            return stack;
+        }
+        return null;
     }
 
     @Override
@@ -38,7 +382,14 @@ public class TileCrate extends TileInv implements ISidedInventory
     {
         boolean change = false;
         ItemStack prev_stack = getStackInSlot(slot);
-        super.setInventorySlotContents(slot, stack);
+        if (stack != null && stack.stackSize > 0)
+        {
+            inventory.put(slot, stack.copy());
+        }
+        else
+        {
+            inventory.remove(slot);
+        }
 
         //Set item stack cache
         if (currentItem == null && stack != null && stack.stackSize > 0)
@@ -86,7 +437,60 @@ public class TileCrate extends TileInv implements ISidedInventory
         if (change && isServer())
         {
             //TODO send packet
+            markDirty();
         }
+    }
+
+    @Override
+    public String getInventoryName()
+    {
+        return "crate.container";
+    }
+
+    @Override
+    public boolean hasCustomInventoryName()
+    {
+        return true;
+    }
+
+    @Override
+    public int getInventoryStackLimit()
+    {
+        return 64;
+    }
+
+    @Override
+    public boolean isUseableByPlayer(EntityPlayer player)
+    {
+        return false;
+    }
+
+    @Override
+    public void openInventory()
+    {
+
+    }
+
+    @Override
+    public void closeInventory()
+    {
+
+    }
+
+    @Override
+    public boolean isItemValidForSlot(int slot, ItemStack stack)
+    {
+        return slot < getSizeInventory() && isValid(stack);
+    }
+
+    protected boolean isValid(ItemStack stack)
+    {
+        return doesItemStackMatch(stack) || currentItem == null && stack != null;
+    }
+
+    protected boolean doesItemStackMatch(ItemStack stack)
+    {
+        return stack != null && currentItem.isItemEqual(stack) && ItemStack.areItemStackTagsEqual(currentItem, stack);
     }
 
     @Override
