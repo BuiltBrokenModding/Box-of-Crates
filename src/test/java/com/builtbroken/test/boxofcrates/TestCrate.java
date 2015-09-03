@@ -52,17 +52,18 @@ public class TestCrate extends AbstractTest
         for (TileCrate.CrateType type : TileCrate.CrateType.values())
         {
             crate.crateType = type;
-            for (ItemStack stack : new ItemStack[]{new ItemStack(Items.apple)})
+            for (ItemStack stack : new ItemStack[]{new ItemStack(Items.apple), new ItemStack(Items.stone_axe)})
             {
                 for (int i = 0; i < crate.getSizeInventory(); i++)
                 {
-                    //Check to ensure slot is emtpy
+                    //Check to ensure slot is empty
                     assertTrue("Slot " + i + " should be empty", crate.getStackInSlot(i) == null);
 
                     //Set slot to stack
                     crate.setInventorySlotContents(i, stack);
                     assertTrue("Slot " + i + " should contain " + stack, areItemStacksEqual(crate.getStackInSlot(i), stack));
                     assertTrue("Current stack should be " + stack, areItemStacksEqual(crate.getStackInSlot(i), stack));
+                    assertTrue("Slot limit should equal " + stack.getMaxStackSize(), crate.getInventoryStackLimit() == stack.getMaxStackSize());
 
                     //Cleanup
                     crate.setInventorySlotContents(i, null);
