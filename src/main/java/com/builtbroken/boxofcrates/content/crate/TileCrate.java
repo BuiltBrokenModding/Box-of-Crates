@@ -22,12 +22,12 @@ public class TileCrate extends Tile implements ISidedInventory
     /** Slot ID for the next slot with room to store items. -1 means that the inventory has not been initialized for data. -2 means the inventory has no free slots. */
     protected int nextEmptySlot = -1;
     /** Current number of items stored in the inventory. Its mainly used for packet updates and display data */
-    protected int currentStackSize = 0;
+    public int currentStackSize = 0;
     /** Current ItemStack in the crate. Stack size is always 1 and its only used for logic checks. */
-    protected ItemStack currentItem = null;
+    public ItemStack currentItem = null;
 
     /** Tier/Type of crate */
-    private CrateType crateType = CrateType.BASE;
+    public CrateType crateType = CrateType.BASE;
 
     /** Main inventory map */
     private HashMap<Integer, ItemStack> inventory = new HashMap();
@@ -407,10 +407,10 @@ public class TileCrate extends Tile implements ISidedInventory
         //Slot contained content but is being set to null
         else if (prev_stack != null && stack == null)
         {
-            currentStackSize -= stack.stackSize;
+            currentStackSize -= prev_stack.stackSize;
             if (currentStackSize <= 0)
             {
-                currentItem = null;
+                clearInventory();
             }
             change = true;
         }
@@ -456,13 +456,13 @@ public class TileCrate extends Tile implements ISidedInventory
     @Override
     public int getInventoryStackLimit()
     {
-        return 64;
+        return currentItem != null ? currentItem.getMaxStackSize() : 64;
     }
 
     @Override
     public boolean isUseableByPlayer(EntityPlayer player)
     {
-        return false;
+        return toPos().add(0.5).distance(player) < 5;
     }
 
     @Override
@@ -508,7 +508,7 @@ public class TileCrate extends Tile implements ISidedInventory
     @Override
     public boolean canInsertItem(int p_102007_1_, ItemStack stack, int p_102007_3_)
     {
-        return stack != null && (currentItem == null || currentItem.isItemEqual(stack) && ItemStack.areItemStackTagsEqual(currentItem, stack));
+        return isValid(stack);
     }
 
     @Override
