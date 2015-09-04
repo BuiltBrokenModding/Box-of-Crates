@@ -1,6 +1,7 @@
 package com.builtbroken.boxofcrates.content.crate;
 
 import com.builtbroken.boxofcrates.BoxOfCrates;
+import com.builtbroken.mc.core.Engine;
 import com.builtbroken.mc.lib.helper.LanguageUtility;
 import com.builtbroken.mc.lib.transform.vector.Pos;
 import com.builtbroken.mc.prefab.tile.Tile;
@@ -348,7 +349,7 @@ public class TileCrate extends Tile implements ISidedInventory
     public ItemStack decrStackSize(int slot, int amount)
     {
         ItemStack stack = getStackInSlot(slot);
-        if (stack != null && amount != 0)
+        if (stack != null && amount > 0)
         {
             if (stack.stackSize <= amount)
             {
@@ -380,64 +381,75 @@ public class TileCrate extends Tile implements ISidedInventory
     @Override
     public void setInventorySlotContents(int slot, ItemStack stack)
     {
-        boolean change = false;
-        ItemStack prev_stack = getStackInSlot(slot);
-        if (stack != null && stack.stackSize > 0)
+        if (slot >= 0 && slot < getSizeInventory())
         {
-            inventory.put(slot, stack.copy());
-        }
-        else
-        {
-            inventory.remove(slot);
-        }
-
-        //Set item stack cache
-        if (currentItem == null && stack != null && stack.stackSize > 0)
-        {
-            currentItem = stack.copy();
-            currentItem.stackSize = 1;
-        }
-
-        //Slot was empty
-        if (prev_stack == null && stack != null && stack.stackSize > 0)
-        {
-            currentStackSize += stack.stackSize;
-            change = true;
-        }
-        //Slot contained content but is being set to null
-        else if (prev_stack != null && stack == null)
-        {
-            currentStackSize -= prev_stack.stackSize;
-            if (currentStackSize <= 0)
+            boolean change = false;
+            ItemStack prev_stack = getStackInSlot(slot);
+            if (stack != null && stack.stackSize > 0)
             {
-                clearInventory();
+                inventory.put(slot, stack.copy());
             }
-            change = true;
-        }
-        //Slot was not empty but is being updated
-        else if (prev_stack != null && stack != null && stack.stackSize > 0)
-        {
-            if (!currentItem.isItemEqual(stack) || !ItemStack.areItemStackTagsEqual(currentItem, stack))
+            else
             {
-                BoxOfCrates.INSTANCE.logger().error(this + " Something attempted to set slot " + slot + " to stack " + stack + " which doesn't match " + currentItem + ". Ignoring set to prevent duplication. Items were most likely lost in this interaction and need to be returned by an admin. Report this error and following exception to the mod developer.", new RuntimeException());
-                return;
+                inventory.remove(slot);
             }
-            if (prev_stack.stackSize < stack.stackSize)
+
+            //Set item stack cache
+            if (currentItem == null && stack != null && stack.stackSize > 0)
             {
-                currentStackSize += prev_stack.stackSize - stack.stackSize;
+                currentItem = stack.copy();
+                currentItem.stackSize = 1;
+            }
+
+            //Slot was empty
+            if (prev_stack == null && stack != null && stack.stackSize > 0)
+            {
+                currentStackSize += stack.stackSize;
                 change = true;
             }
-            else if (prev_stack.stackSize > stack.stackSize)
+            //Slot contained content but is being set to null
+            else if (prev_stack != null && stack == null)
             {
-                currentStackSize -= stack.stackSize - prev_stack.stackSize;
+                currentStackSize -= prev_stack.stackSize;
+                if (currentStackSize <= 0)
+                {
+                    clearInventory();
+                }
                 change = true;
             }
-        }
+            //Slot was not empty but is being updated
+            else if (prev_stack != null && stack != null && stack.stackSize > 0)
+            {
+                if (!currentItem.isItemEqual(stack) || !ItemStack.areItemStackTagsEqual(currentItem, stack))
+                {
+                    BoxOfCrates.INSTANCE.logger().error(this + " Something attempted to set slot " + slot + " to stack " + stack + " which doesn't match " + currentItem + ". Ignoring set to prevent duplication. Items were most likely lost in this interaction and need to be returned by an admin. Report this error and following exception to the mod developer.", new RuntimeException());
+                    return;
+                }
+                if (prev_stack.stackSize < stack.stackSize)
+                {
+                    currentStackSize += prev_stack.stackSize - stack.stackSize;
+                    change = true;
+                }
+                else if (prev_stack.stackSize > stack.stackSize)
+                {
+                    currentStackSize -= stack.stackSize - prev_stack.stackSize;
+                    change = true;
+                }
+            }
 
-        if (change && isServer())
+            if (change && isServer())
+            {
+                //TODO send packet
+                markDirty();
+            }
+        }
+        else if (slot < 0)
         {
-            //TODO send packet
-            markDirty();
+            Engine.error(this + " Error: slot passed in should not be negative. Report this to a mod author as something is miss using IInventory API to force slot updates.");
+        }
+        else if (slot >= getSizeInventory())
+        {
+            Engine.error(this + " Error: slot passed in should not be larger than the inventory size. Report this to a mod author as something is miss using IInventory API to force slot updates.");
         }
     }
 
@@ -480,7 +492,7 @@ public class TileCrate extends Tile implements ISidedInventory
     @Override
     public boolean isItemValidForSlot(int slot, ItemStack stack)
     {
-        return slot < getSizeInventory() && isValid(stack);
+        return slot >= 0 && slot < getSizeInventory() && isValid(stack);
     }
 
     public boolean isValid(ItemStack stack)
@@ -490,6 +502,7 @@ public class TileCrate extends Tile implements ISidedInventory
 
     /**
      * Checks to see if the stack matches {@link TileCrate#currentItem}
+     *
      * @param stack - ItemStack, can handle null values
      * @return true if the stack matches
      */

@@ -9,7 +9,6 @@ import com.builtbroken.mc.testing.junit.server.FakeDedicatedServer;
 import com.builtbroken.mc.testing.junit.testers.TestPlayer;
 import com.builtbroken.mc.testing.junit.world.FakeWorldServer;
 import com.mojang.authlib.GameProfile;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -29,7 +28,7 @@ public class TestCrate extends AbstractTest
     /** World to do testing in */
     private static FakeWorldServer world;
     /** Player to use for testing interaction methods */
-    private static EntityPlayer player;
+    private static TestPlayer player;
 
     @Override
     public void setUpForEntireClass()
@@ -38,6 +37,12 @@ public class TestCrate extends AbstractTest
         MinecraftServer server = new FakeDedicatedServer(new File(FakeWorldServer.baseFolder, "CrateTester"));
         world = FakeWorldServer.newWorld(server, "TestCrate");
         player = new TestPlayer(server, world, new GameProfile(null, "CrateTester"));
+    }
+
+    @Override
+    public void setUpForTest(String name)
+    {
+        player.reset();
     }
 
     /** Tests {@link TileCrate#TileCrate()}, {@link TileCrate#newTile()} ()}, {@link TileCrate#toString()} ()} */
@@ -83,6 +88,36 @@ public class TestCrate extends AbstractTest
                     crate.setInventorySlotContents(i, null);
                     assertTrue("Slot " + i + " should be empty", crate.getStackInSlot(i) == null);
                     assertTrue("Current stack should be null", crate.currentItem == null);
+                }
+
+                assertTrue("Slot -1 should always return null", crate.getStackInSlot(-1) == null);
+                assertTrue("Slot " + crate.getSizeInventory() + " should always return null", crate.getStackInSlot(crate.getSizeInventory()) == null);
+
+                try
+                {
+                    crate.setInventorySlotContents(-1, new ItemStack(Items.apple));
+                    fail("Crate should have throw an exception for setting negative slot");
+                } catch (RuntimeException e)
+                {
+                    //This should happen
+                    if (!e.getMessage().contains(crate.toString()))
+                    {
+                        e.printStackTrace();
+                        fail("Error didn't contain tile");
+                    }
+                }
+                try
+                {
+                    crate.setInventorySlotContents(crate.getSizeInventory(), new ItemStack(Items.apple));
+                    fail("Crate should have throw an exception for setting negative slot");
+                } catch (RuntimeException e)
+                {
+                    //This should happen
+                    if (!e.getMessage().contains(crate.toString()))
+                    {
+                        e.printStackTrace();
+                        fail("Error didn't contain tile");
+                    }
                 }
             }
         }
@@ -160,6 +195,119 @@ public class TestCrate extends AbstractTest
         assertFalse("Current item should not match apple with nbt", crate.doesItemStackMatch(t1));
 
         //TODO maybe do more test matching for current item with meta, nbt, and both
+    }
+
+    /** Tests {@link TileCrate#isValid(ItemStack)} */
+    public void testIsValid()
+    {
+        TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
+
+        assertFalse("Null should not be valid", crate.isValid(null));
+        assertTrue("Apple should be valid", crate.isValid(new ItemStack(Items.apple)));
+    }
+
+    /** Tests {@link TileCrate#isItemValidForSlot(int, ItemStack)} */
+    public void testIsItemValidForSlot()
+    {
+        for (TileCrate.CrateType type : TileCrate.CrateType.values())
+        {
+            TileCrate crate = new TileCrate();
+            crate.crateType = type;
+            crate.setWorldObj(world);
+            for (int slot = 0; slot < crate.getSizeInventory(); slot++)
+            {
+                assertTrue("Apple should be valid for slot " + slot, crate.isItemValidForSlot(slot, new ItemStack(Items.apple)));
+                assertFalse("Null should be invalid for slot" + slot, crate.isItemValidForSlot(slot, null));
+                crate.currentItem = new ItemStack(Items.stone_hoe);
+                assertFalse("Apple should be invalid for slot " + slot, crate.isItemValidForSlot(slot, new ItemStack(Items.apple)));
+                assertTrue("Stone hoe should be valid for slot " + slot, crate.isItemValidForSlot(slot, new ItemStack(Items.stone_hoe)));
+                crate.currentItem = null;
+            }
+            //Invalid inputs, this should never be called but is handled just in case of people don't know the API
+            assertFalse(crate.isItemValidForSlot(-1, new ItemStack(Items.apple)));
+            assertFalse(crate.isItemValidForSlot(-1, null));
+            assertFalse(crate.isItemValidForSlot(crate.getSizeInventory(), new ItemStack(Items.apple)));
+            assertFalse(crate.isItemValidForSlot(crate.getSizeInventory(), null));
+        }
+    }
+
+
+    public void testGetInventoryStackLimit()
+    {
+        TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
+        assertTrue("Inventory stack limit should be 64 by default", crate.getInventoryStackLimit() == 64);
+        crate.currentItem = new ItemStack(Items.apple);
+        assertTrue("Inventory stack limit should be 64 by default", crate.getInventoryStackLimit() == Items.apple.getItemStackLimit());
+        crate.currentItem = new ItemStack(Items.iron_door);
+        assertTrue("Inventory stack limit should be 64 by default", crate.getInventoryStackLimit() == Items.iron_door.getItemStackLimit());
+    }
+
+
+    public void testIsUseableByPlayer()
+    {
+        TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
+        assertTrue("Player should be able to access the tile for zero distance", crate.isUseableByPlayer(player));
+        player.setLocationAndAngles(0, 6, 0, 0, 0);
+        assertFalse(crate.isUseableByPlayer(player));
+    }
+
+    public void testDecrStackSize()
+    {
+        TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
+        assertTrue("Slot 0 should be empty", crate.getStackInSlot(0) == null);
+        assertTrue("Should return null as slot is empty", crate.decrStackSize(0, 1) == null);
+        crate.setInventorySlotContents(0, new ItemStack(Items.apple, 64));
+
+        //Test a partial consume of slot
+        ItemStack stack = crate.decrStackSize(0, 1);
+        assertTrue("Should have returned an apple", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+        assertTrue("Should have returned an one apple", stack.stackSize == 1);
+        stack = crate.getStackInSlot(0);
+        assertTrue("Slot 0 should still contain apples", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+        assertTrue("Slot 0 should contain 63 apples", stack.stackSize == 63);
+
+        //Test full consume of slot
+        crate.setInventorySlotContents(0, new ItemStack(Items.apple, 64));
+        stack = crate.decrStackSize(0, 64);
+        assertTrue("Should have returned an apple", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+        assertTrue("Should have returned an one apple", stack.stackSize == 64);
+        assertTrue("Slot 0 should be empty", crate.getStackInSlot(0) == null);
+
+        //Test full consume of slot
+        crate.setInventorySlotContents(0, new ItemStack(Items.apple, 64));
+        stack = crate.decrStackSize(0, -1);
+        assertTrue("Slot split stack should be null", stack == null);
+        assertTrue("Slot 0 should be contain apples", areItemStacksEqual(crate.getStackInSlot(0), new ItemStack(Items.apple)));
+        assertTrue("Slot 0 should be contain 64 apples", crate.getStackInSlot(0).stackSize == 64);
+    }
+
+    public void testGetNextEmptySlot()
+    {
+
+    }
+
+    public void testRebuildEntireInventory()
+    {
+
+    }
+
+    public void testIncreaseCount()
+    {
+
+    }
+
+    public void testDecreaseCount()
+    {
+
+    }
+
+    public void testOnPlayerRightClick()
+    {
+
     }
 
     /**
