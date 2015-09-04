@@ -30,7 +30,7 @@ public class TileCrate extends Tile implements ISidedInventory
     public CrateType crateType = CrateType.BASE;
 
     /** Main inventory map */
-    private HashMap<Integer, ItemStack> inventory = new HashMap();
+    public HashMap<Integer, ItemStack> inventory = new HashMap();
     /** Set of slots that have space to add items */
     private SortedSet<Integer> slotsWithRoomStack = new TreeSet();
 
@@ -483,14 +483,19 @@ public class TileCrate extends Tile implements ISidedInventory
         return slot < getSizeInventory() && isValid(stack);
     }
 
-    protected boolean isValid(ItemStack stack)
+    public boolean isValid(ItemStack stack)
     {
-        return doesItemStackMatch(stack) || currentItem == null && stack != null;
+        return stack != null && (doesItemStackMatch(stack) || currentItem == null);
     }
 
-    protected boolean doesItemStackMatch(ItemStack stack)
+    /**
+     * Checks to see if the stack matches {@link TileCrate#currentItem}
+     * @param stack - ItemStack, can handle null values
+     * @return true if the stack matches
+     */
+    public boolean doesItemStackMatch(ItemStack stack)
     {
-        return stack != null && currentItem.isItemEqual(stack) && ItemStack.areItemStackTagsEqual(currentItem, stack);
+        return currentItem == null && stack == null || stack != null && currentItem != null && currentItem.isItemEqual(stack) && ItemStack.areItemStackTagsEqual(currentItem, stack);
     }
 
     @Override
@@ -502,25 +507,25 @@ public class TileCrate extends Tile implements ISidedInventory
     @Override
     public int[] getAccessibleSlotsFromSide(int side)
     {
-        return crateType.slots;
+        return side >= 0 && side < 6 ? crateType.slots : EMPTY_INT_ARRAY;
     }
 
     @Override
-    public boolean canInsertItem(int p_102007_1_, ItemStack stack, int p_102007_3_)
+    public boolean canInsertItem(int slot, ItemStack stack, int side)
     {
-        return isValid(stack);
+        return slot >= 0 && slot < getSizeInventory() && isValid(stack);
     }
 
     @Override
-    public boolean canExtractItem(int p_102008_1_, ItemStack stack, int p_102008_3_)
+    public boolean canExtractItem(int slot, ItemStack stack, int side)
     {
-        return true;
+        return slot >= 0 && slot < getSizeInventory();
     }
 
     @Override
     public String toString()
     {
-        return "Crate[" + xi() + "x " + yi() + "y " + zi() + "z ]" + hashCode();
+        return String.format("Crate[%dx %dy %dz]%d", xi(), yi(), zi(), hashCode());
     }
 
     public enum CrateType
