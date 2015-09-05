@@ -413,19 +413,97 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#increaseCount(int)} */
     public void testIncreaseCount()
     {
+        TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
+        assertTrue(crate.currentStackSize == 0);
+
+        //Can't accept neg numbers
+        crate.increaseCount(-1);
+        assertTrue("Stack size should still be zero", crate.currentStackSize == 0);
+
+        //Ensure not increase when current item is null
+        crate.increaseCount(1);
+        assertTrue("Stack size should still be zero", crate.currentStackSize == 0);
+
+        //Test generic decrease
+        crate.currentStackSize = 74;
+        crate.currentItem = new ItemStack(Items.apple);
+        crate.rebuildEntireInventory();
+        crate.increaseCount(1);
+        assertTrue("Stack size should still be zero", crate.currentStackSize == 75);
+        ItemStack stack = crate.getStackInSlot(0);
+        assertTrue("Slot 0 should contain apples", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+        assertTrue("Slot 0 should contain 64 items", stack.stackSize == 64);
+        stack = crate.getStackInSlot(1);
+        assertTrue("Slot 0 should contain apples", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+        assertTrue("Slot 0 should contain 9 items", stack.stackSize == 11);
+        for (int i = 2; i < crate.getSizeInventory(); i++)
+        {
+            assertTrue("Slot " + i + " should be empty", crate.getStackInSlot(i) == null);
+        }
+
+        //Test complete fill, and that it exits if the inventory is full even if there are items left
+        crate.increaseCount(crate.getInventoryStackLimit() * crate.getSizeInventory() * 2);
+        int currentStackSize = crate.currentStackSize;
+        int expectedStackSize = crate.getInventoryStackLimit() * crate.getSizeInventory();
+        assertTrue("Stack size should be " + expectedStackSize + " but is " + currentStackSize,  currentStackSize == expectedStackSize);
+        for (int i = 0; i < crate.getSizeInventory(); i++)
+        {
+            stack = crate.getStackInSlot(0);
+            assertTrue("Slot " + i + " should contain apples", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+            assertTrue("Slot " + i + " should contain 64 items", stack.stackSize == 64);
+        }
 
     }
 
     /** Tests {@link TileCrate#decreaseCount(int)} */
     public void testDecreaseCount()
     {
+        TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
+        assertTrue(crate.currentStackSize == 0);
 
+        //Can't accept neg numbers
+        crate.decreaseCount(-1);
+        assertTrue("Stack size should still be zero", crate.currentStackSize == 0);
+
+        //Ensure nothing happens when the current item is null
+        crate.currentStackSize = 1;
+        crate.decreaseCount(1);
+        assertTrue("Stack size should still be zero", crate.currentStackSize == 1);
+
+        //Test generic decrease
+        crate.currentStackSize = 74;
+        crate.currentItem = new ItemStack(Items.apple);
+        crate.rebuildEntireInventory();
+        crate.decreaseCount(1);
+        assertTrue("Stack size should still be zero", crate.currentStackSize == 73);
+        ItemStack stack = crate.getStackInSlot(0);
+        assertTrue("Slot 0 should contain apples", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+        assertTrue("Slot 0 should contain 64 items but contains " + stack.stackSize, stack.stackSize == 64);
+        stack = crate.getStackInSlot(1);
+        assertTrue("Slot 0 should contain apples", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+        assertTrue("Slot 0 should contain 9 items but contains " + stack.stackSize, stack.stackSize == 9);
+        for (int i = 2; i < crate.getSizeInventory(); i++)
+        {
+            assertTrue("Slot " + i + " should be empty", crate.getStackInSlot(i) == null);
+        }
+
+        //Test draining remaining items
+        crate.decreaseCount(73);
+        assertTrue("Stack size should still be zero", crate.currentStackSize == 0);
+        assertTrue("Current item should be null", crate.currentItem == null);
+        for (int i = 0; i < crate.getSizeInventory(); i++)
+        {
+            assertTrue("Slot " + i + " should be empty", crate.getStackInSlot(i) == null);
+        }
     }
 
     /** Tests {@link TileCrate#onPlayerRightClick(EntityPlayer, int, Pos)} */
     public void testOnPlayerRightClick()
     {
-
+        TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
     }
 
     /**

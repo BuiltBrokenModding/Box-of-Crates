@@ -167,9 +167,8 @@ public class TileCrate extends Tile implements ISidedInventory
      */
     public void increaseCount(int count)
     {
-        if (currentItem != null)
+        if (currentItem != null && count > 0)
         {
-            this.currentStackSize += count;
             while (count > 0)
             {
                 int slot = getNextEmptySlot();
@@ -177,52 +176,65 @@ public class TileCrate extends Tile implements ISidedInventory
                     break;
                 ItemStack slotContent = getStackInSlot(slot);
                 int roomLeft = slotContent != null ? getInventoryStackLimit() - slotContent.stackSize : getInventoryStackLimit();
+                int setSize = Math.min(roomLeft, count);
+                count -= setSize;
+                if (slotContent == null)
+                {
+                    slotContent = currentItem.copy();
+                    slotContent.stackSize = setSize;
+                    setInventorySlotContents(slot, slotContent);
+                }
+                else
+                {
+                    slotContent.stackSize += setSize;
+                    currentStackSize += setSize;
+                }
             }
         }
     }
 
     public void decreaseCount(int count)
     {
-        if (count > 0)
+        if (currentItem != null && count > 0)
         {
-            if (currentItem != null)
+            currentStackSize -= count;
+            if (currentStackSize > 0)
             {
-                currentStackSize -= count;
-                if (currentStackSize > 0)
+                int itemsToRemove = count;
+
+                //http://stackoverflow.com/questions/922528/how-to-sort-map-values-by-key-in-java
+                List sortedKeys = new ArrayList(inventory.keySet());
+                Collections.sort(sortedKeys);
+
+                for (int i = sortedKeys.size() - 1; i >= 0; i--)
                 {
-                    int itemsToRemove = count;
-                    Iterator<Map.Entry<Integer, ItemStack>> it = inventory.entrySet().iterator();
-                    while (it.hasNext())
+                    if (itemsToRemove == 0)
+                        break; //Done all items removed
+                    if (getStackInSlot(i) == null)
                     {
-                        Map.Entry<Integer, ItemStack> entry = it.next();
-                        if (itemsToRemove == 0)
-                            break; //Done all items removed
-                        if (entry.getValue() == null)
-                        {
-                            it.remove();
-                            slotsWithRoomStack.add(entry.getKey());
-                            if (nextEmptySlot < 0)
-                                nextEmptySlot = entry.getKey();
-                        }
-                        else if (entry.getValue().stackSize <= itemsToRemove)
-                        {
-                            itemsToRemove -= entry.getValue().stackSize;
-                            it.remove();
-                            slotsWithRoomStack.add(entry.getKey());
-                            if (nextEmptySlot < 0)
-                                nextEmptySlot = entry.getKey();
-                        }
-                        else
-                        {
-                            entry.getValue().stackSize -= itemsToRemove;
-                            break; //Done all items removed
-                        }
+                        inventory.remove(i);
+                        slotsWithRoomStack.add(i);
+                        if (nextEmptySlot > i)
+                            nextEmptySlot = i;
+                    }
+                    else if (getStackInSlot(i).stackSize <= itemsToRemove)
+                    {
+                        itemsToRemove -= getStackInSlot(i).stackSize;
+                        inventory.remove(i);
+                        slotsWithRoomStack.add(i);
+                        if (nextEmptySlot > i)
+                            nextEmptySlot = i;
+                    }
+                    else
+                    {
+                        getStackInSlot(i).stackSize -= itemsToRemove;
+                        break; //Done all items removed
                     }
                 }
-                else
-                {
-                    clearInventory();
-                }
+            }
+            else
+            {
+                clearInventory();
             }
         }
     }
