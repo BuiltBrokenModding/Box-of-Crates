@@ -1,6 +1,7 @@
 package com.builtbroken.test.boxofcrates;
 
 import com.builtbroken.boxofcrates.content.crate.TileCrate;
+import com.builtbroken.mc.lib.transform.vector.Pos;
 import com.builtbroken.mc.prefab.items.ItemStackWrapper;
 import com.builtbroken.mc.prefab.tile.entity.TileEntityBase;
 import com.builtbroken.mc.testing.junit.AbstractTest;
@@ -9,6 +10,7 @@ import com.builtbroken.mc.testing.junit.server.FakeDedicatedServer;
 import com.builtbroken.mc.testing.junit.testers.TestPlayer;
 import com.builtbroken.mc.testing.junit.world.FakeWorldServer;
 import com.mojang.authlib.GameProfile;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -232,7 +234,7 @@ public class TestCrate extends AbstractTest
         }
     }
 
-
+    /** Tests {@link TileCrate#getInventoryStackLimit()} */
     public void testGetInventoryStackLimit()
     {
         TileCrate crate = new TileCrate();
@@ -244,7 +246,7 @@ public class TestCrate extends AbstractTest
         assertTrue("Inventory stack limit should be 64 by default", crate.getInventoryStackLimit() == Items.iron_door.getItemStackLimit());
     }
 
-
+    /** Tests {@link TileCrate#isUseableByPlayer(EntityPlayer)} */
     public void testIsUseableByPlayer()
     {
         TileCrate crate = new TileCrate();
@@ -254,6 +256,7 @@ public class TestCrate extends AbstractTest
         assertFalse(crate.isUseableByPlayer(player));
     }
 
+    /** Tests {@link TileCrate#decrStackSize(int, int)} */
     public void testDecrStackSize()
     {
         TileCrate crate = new TileCrate();
@@ -285,26 +288,141 @@ public class TestCrate extends AbstractTest
         assertTrue("Slot 0 should be contain 64 apples", crate.getStackInSlot(0).stackSize == 64);
     }
 
+    /** Tests {@link TileCrate#clearInventory()} */
+    public void testClearInventory()
+    {
+        TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
+        crate.currentItem = new ItemStack(Items.record_11);
+        crate.currentStackSize = 10;
+        crate.inventory.put(1, new ItemStack(Items.record_13));
+        crate.clearInventory();
+        assertTrue(crate.currentItem == null);
+        assertTrue(crate.currentStackSize == 0);
+        assertTrue(crate.inventory.isEmpty());
+    }
+
+    /** Tests {@link TileCrate#getNextEmptySlot()} */
     public void testGetNextEmptySlot()
     {
+        TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
+        for (int i = 0; i < crate.getSizeInventory(); i++)
+        {
+            int slot = crate.getNextEmptySlot();
+            int estimatedSlotsLeft = crate.getSizeInventory() - i;
+            assertTrue("slotsWithRoomStack should contain " + estimatedSlotsLeft + " slots but contained " + crate.slotsWithRoomStack.size(), crate.slotsWithRoomStack.size() == estimatedSlotsLeft);
+            assertTrue("Next empty slot should equal current slot " + i + ", instead it equals " + slot, slot == i);
+            crate.setInventorySlotContents(i, new ItemStack(Items.apple, 64));
+        }
+        //Fill slot
+        crate.clearInventory();
+        crate.setInventorySlotContents(20, new ItemStack(Items.apple, 64));
+        assertTrue("Slot 20 should contain apples", areItemStacksEqual(crate.getStackInSlot(20), new ItemStack(Items.apple)));
+        assertTrue("Next empty slot should be 0 even though slot 20 is full", crate.getNextEmptySlot() == 0);
+        assertFalse("Slot stack should not contain 20", crate.slotsWithRoomStack.contains(20));
+        assertTrue("Should be " + (crate.getSizeInventory() - 1) + " slots left but there is " + crate.slotsWithRoomStack.size(), (crate.getSizeInventory() - 1) == crate.slotsWithRoomStack.size());
+
+        //Set item but don't fill
+        crate.clearInventory();
+        crate.setInventorySlotContents(20, new ItemStack(Items.apple, 1));
+        assertTrue("Next empty slot should be 0 even though slot 20 is set", crate.getNextEmptySlot() == 0);
+        assertTrue("Should be " + crate.getSizeInventory() + " slots left but there is " + crate.slotsWithRoomStack.size(), crate.getSizeInventory() == crate.slotsWithRoomStack.size());
 
     }
 
+    /** Tests {@link TileCrate#rebuildEntireInventory()} */
     public void testRebuildEntireInventory()
     {
+        TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
+        ItemStack stack;
 
+        //Test call if current stack is null
+        crate.rebuildEntireInventory();
+        for (int i = 0; i < crate.getSizeInventory(); i++)
+        {
+            assertTrue("Slot " + i + " should empty", crate.getStackInSlot(i) == null);
+        }
+        crate.clearInventory();
+
+        //Test call if stack size is zero
+        crate.currentItem = new ItemStack(Items.apple);
+        crate.rebuildEntireInventory();
+        for (int i = 0; i < crate.getSizeInventory(); i++)
+        {
+            assertTrue("Slot " + i + " should empty", crate.getStackInSlot(i) == null);
+        }
+        assertTrue("Current item should have been cleared due to zero stack size", crate.currentItem == null);
+        crate.clearInventory();
+
+        //Test generic fill inventory
+        crate.currentItem = new ItemStack(Items.apple);
+        crate.currentStackSize = (crate.getInventoryStackLimit() * 10) + 10;
+        crate.rebuildEntireInventory();
+        assertTrue("Inventory should have 11 slots with content", crate.inventory.size() == 11);
+        int slot = crate.getNextEmptySlot();
+        assertTrue("Next empty slot should be 10 but is " + slot, slot == 10);
+        assertTrue("Should be " + (crate.getSizeInventory() - 10) + " slots with space but list contains " + crate.slotsWithRoomStack.size(), (crate.getSizeInventory() - 10) == crate.slotsWithRoomStack.size());
+        for (int i = 0; i < 10; i++)
+        {
+            stack = crate.getStackInSlot(i);
+            assertTrue("Slot " + i + " should contain apples", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+            assertTrue("Slot " + i + " should contain 64 apples", stack.stackSize == crate.getInventoryStackLimit());
+        }
+        stack = crate.getStackInSlot(10);
+        assertTrue("Slot 10 should contain apples", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+        assertTrue("Slot 10 should contain apples 10 apples", stack.stackSize == 10);
+        for (int i = 11; i < crate.getSizeInventory(); i++)
+        {
+            assertTrue("Slot " + i + " should empty", crate.getStackInSlot(i) == null);
+        }
+        crate.clearInventory();
+
+        //Test compete fill
+        crate.currentItem = new ItemStack(Items.apple);
+        crate.currentStackSize = crate.getSizeInventory() * crate.getInventoryStackLimit();
+        crate.rebuildEntireInventory();
+        assertTrue("Inventory should have " + crate.getSizeInventory() + " slots with content", crate.inventory.size() == crate.getSizeInventory());
+        assertTrue("Next empty slot should be -2", crate.getNextEmptySlot() == -2);
+        assertTrue("Slots with space should be empty", crate.slotsWithRoomStack.isEmpty());
+        for (int i = 0; i < crate.getSizeInventory(); i++)
+        {
+            stack = crate.getStackInSlot(i);
+            assertTrue("Slot " + i + " should contain apples", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+            assertTrue("Slot " + i + " should contain 64 apples", stack.stackSize == crate.getInventoryStackLimit());
+        }
+        crate.clearInventory();
+
+        //Test over fill
+        crate.currentItem = new ItemStack(Items.apple);
+        crate.currentStackSize = crate.getSizeInventory() * crate.getInventoryStackLimit() * 10; //yes this is extreme but why not
+        crate.rebuildEntireInventory();
+        assertTrue("Inventory should have " + crate.getSizeInventory() + " slots with content", crate.inventory.size() == crate.getSizeInventory());
+        assertTrue("Next empty slot should be -2", crate.getNextEmptySlot() == -2);
+        assertTrue("Slots with space should be empty", crate.slotsWithRoomStack.isEmpty());
+        for (int i = 0; i < crate.getSizeInventory(); i++)
+        {
+            stack = crate.getStackInSlot(i);
+            assertTrue("Slot " + i + " should contain apples", areItemStacksEqual(stack, new ItemStack(Items.apple)));
+            assertTrue("Slot " + i + " should contain 64 apples", stack.stackSize == crate.getInventoryStackLimit());
+        }
+        crate.clearInventory();
     }
 
+    /** Tests {@link TileCrate#increaseCount(int)} */
     public void testIncreaseCount()
     {
 
     }
 
+    /** Tests {@link TileCrate#decreaseCount(int)} */
     public void testDecreaseCount()
     {
 
     }
 
+    /** Tests {@link TileCrate#onPlayerRightClick(EntityPlayer, int, Pos)} */
     public void testOnPlayerRightClick()
     {
 

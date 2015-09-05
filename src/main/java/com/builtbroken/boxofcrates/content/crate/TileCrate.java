@@ -33,7 +33,7 @@ public class TileCrate extends Tile implements ISidedInventory
     /** Main inventory map */
     public HashMap<Integer, ItemStack> inventory = new HashMap();
     /** Set of slots that have space to add items */
-    private SortedSet<Integer> slotsWithRoomStack = new TreeSet();
+    public SortedSet<Integer> slotsWithRoomStack = new TreeSet();
 
     public TileCrate()
     {
@@ -233,6 +233,7 @@ public class TileCrate extends Tile implements ISidedInventory
     public void clearInventory()
     {
         currentItem = null;
+        currentStackSize = 0;
         inventory.clear();
         slotsWithRoomStack.clear();
         nextEmptySlot = -1;
@@ -265,14 +266,27 @@ public class TileCrate extends Tile implements ISidedInventory
                     newStack.stackSize = Math.min(getInventoryStackLimit(), itemsLeft);
                     inventory.put(i, newStack);
                     itemsLeft -= newStack.stackSize;
+
+                    //If we filled only part of the slot then we need to add it to the slot stack
+                    if (itemsLeft == 0 && newStack.stackSize < getInventoryStackLimit())
+                    {
+                        if (nextEmptySlot == -1)
+                            nextEmptySlot = i;
+                        slotsWithRoomStack.add(i);
+                    }
+
+                    //Handle last slot
                     if (i == getSizeInventory() - 1)
                     {
+                        //If last slot is filled then there are not slots left, note with -2
                         if (newStack.stackSize == getInventoryStackLimit())
                             nextEmptySlot = -2;
+                            //If there is room this is our next free slot
                         else
                             nextEmptySlot = i;
                     }
                 }
+                //We have no items left but our slot stack is not fully initialized, lets add remaining slots to que
                 else
                 {
                     if (nextEmptySlot == -1)
@@ -297,9 +311,9 @@ public class TileCrate extends Tile implements ISidedInventory
             for (int i = 0; i < getSizeInventory(); i++)
             {
                 ItemStack stack = getStackInSlot(i);
-                if (stack == null || stack.stackSize < getSizeInventory())
+                if (stack == null || stack.stackSize < getInventoryStackLimit())
                 {
-                    if (nextEmptySlot == -1)
+                    if (nextEmptySlot < 0)
                         nextEmptySlot = i;
                     if (!slotsWithRoomStack.contains(i))
                         slotsWithRoomStack.add(i);
@@ -307,7 +321,7 @@ public class TileCrate extends Tile implements ISidedInventory
             }
         }
         ItemStack stack = getStackInSlot(nextEmptySlot);
-        if (stack != null && stack.stackSize >= getSizeInventory())
+        if (stack != null && stack.stackSize >= getInventoryStackLimit())
         {
             slotsWithRoomStack.remove(nextEmptySlot);
             nextEmptySlot = -2;
@@ -315,6 +329,7 @@ public class TileCrate extends Tile implements ISidedInventory
             while (it.hasNext())
             {
                 int slot = it.next();
+                stack = getStackInSlot(slot);
                 if (stack == null || stack.stackSize < getSizeInventory())
                 {
                     nextEmptySlot = slot;
