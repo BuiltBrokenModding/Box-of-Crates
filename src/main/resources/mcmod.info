@@ -1,7 +1,7 @@
 [{
     "modid": "boxofcrates",
     "name": "Box-Of-Crates",
-    "description": "",
+    "description": "Storage addition mod focusing on improving and making storage more diverse. In other words it mostly cosmetic storage of items and blocks.",
     "version": "${version}",
     "mcversion": "${mcversion}",
     "url": "http://builtbroken.com/",
