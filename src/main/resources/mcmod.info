@@ -1,0 +1,18 @@
+[{
+    "modid": "boxofcrates",
+    "name": "Box-Of-Crates",
+    "description": "",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "http://builtbroken.com/",
+    "updateUrl": "",
+    "authors": ["DarkCow"],
+    "credits": "Dmod",
+    "logoFile": "",
+    "screenshots": [],
+    "parent": "",
+    "requiredMods": [],
+    "dependencies": [],
+    "dependants": [],
+    "useDependencyInformation": "false"
+}]

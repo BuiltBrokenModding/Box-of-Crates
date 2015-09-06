@@ -13,6 +13,7 @@ buildscript {
     }
     dependencies {
         classpath 'net.minecraftforge.gradle:ForgeGradle:1.2-SNAPSHOT'
+        classpath 'org.ajoberstar:gradle-git:0.10.1'
     }
 }
 
@@ -27,52 +28,13 @@ apply plugin: 'forge'
 apply plugin: 'curseforge'
 apply plugin: 'com.github.kt3k.coveralls'
 apply plugin: 'jacoco'
-
-ext.buildProps = file "build.properties"
+apply from: 'https://raw.githubusercontent.com/BuiltBrokenModding/BuiltBrokenScripts/buildScripts/scripts/forge/deps.gradle'
 
 println "Current Minecraft version = " + minecraft.apiVersion
 
 def currentJvm = org.gradle.internal.jvm.Jvm.current()
 println "Current Java version = " + currentJvm
 
-buildProps.withReader {
-    def prop = new Properties()
-    prop.load(it)
-    ext.config = new ConfigSlurper().parse prop
-}
-
-if (project.getProperty("bambooshortPlanName") == "BBM-Dev") {
-    group = "dev.builtbroken.colorpots"
-    archivesBaseName = "filteredChests"
-} else {
-    group = "com.builtbroken.colorpots"
-    archivesBaseName = "filteredChests"
-}
-
-println archivesBaseName 
-
-version = "${project.minecraft.version}-${config.version.mod.major}.${config.version.mod.minor}.${config.version.mod.revis}b"
-
-// This is used to set the local version
-if (project.hasProperty("bambooBuildNumber"))
-    version += project.bambooBuildNumber
-else
-    version += getDate()
-
-println "version = "+ version
-
-minecraft {
-	replace "@MAJOR@", config.version.mod.major
-	replace "@MINOR@", config.version.mod.minor
-	replace "@REVIS@", config.version.mod.revis
-	
-	if (project.hasProperty("bambooBuildNumber")) {
-		replace "@BUILD@", project.bambooBuildNumber
-	}
-	else {
-		replace "@BUILD@", getDate()
-	}
-}
 processResources {
 	from(sourceSets.main.resources.srcDirs) {
 		//include '**/*.lang'
@@ -88,15 +50,6 @@ processResources {
 		exclude '**/*.info'
 		exclude '**/*.properties'
 	}
-}
-
-archivesBaseName = "filteredChests"
-
-repositories {
-    maven {
-        name "BuiltBroken"
-        url "http://ci.builtbroken.com/maven/"
-    }
 }
 
 jar {
