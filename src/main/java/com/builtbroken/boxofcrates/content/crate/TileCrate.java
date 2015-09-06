@@ -3,7 +3,9 @@ package com.builtbroken.boxofcrates.content.crate;
 import com.builtbroken.boxofcrates.BoxOfCrates;
 import com.builtbroken.mc.core.Engine;
 import com.builtbroken.mc.lib.helper.LanguageUtility;
+import com.builtbroken.mc.lib.transform.vector.Location;
 import com.builtbroken.mc.lib.transform.vector.Pos;
+import com.builtbroken.mc.prefab.inventory.InventoryUtility;
 import com.builtbroken.mc.prefab.tile.Tile;
 import net.minecraft.block.material.Material;
 import net.minecraft.entity.player.EntityPlayer;
@@ -56,20 +58,25 @@ public class TileCrate extends Tile implements ISidedInventory
             ItemStack heldItem = player.getHeldItem() != null ? player.getHeldItem().copy() : null;
             boolean contentsChanged = false;
 
-            if (dir != ForgeDirection.SOUTH)
+            if (dir != ForgeDirection.DOWN)
             {
                 //Add Items
-                if (dir == ForgeDirection.NORTH || hit.y() >= 4.9)
+                if (dir == ForgeDirection.UP || hit.y() >= 5)
                 {
                     if (isValid(heldItem))
                     {
+                        if (currentItem == null)
+                        {
+                            currentItem = heldItem.copy();
+                            currentItem.stackSize = 1;
+                        }
                         int roomLeft = (getSizeInventory() * getInventoryStackLimit()) - currentStackSize;
-                        if (roomLeft != 0)
+                        if (roomLeft > 0)
                         {
                             if (isServer())
                             {
                                 //Creative mode mass fill option
-                                if (dir == ForgeDirection.NORTH && player.capabilities.isCreativeMode)
+                                if (dir == ForgeDirection.UP && player.capabilities.isCreativeMode)
                                 {
                                     currentStackSize = getSizeInventory() * getInventoryStackLimit();
                                     contentsChanged = true;
@@ -111,7 +118,7 @@ public class TileCrate extends Tile implements ISidedInventory
                 else if (currentItem != null && currentStackSize > 0)
                 {
                     //Fill held item
-                    if (isValid(heldItem) && heldItem.stackSize < heldItem.getMaxStackSize() || heldItem == null)
+                    if (isValid(heldItem) && heldItem.stackSize < heldItem.getMaxStackSize())
                     {
                         int itemsToRemove = player.isSneaking() ? 1 : currentItem.getMaxStackSize() - heldItem.getMaxStackSize();
                         if (itemsToRemove <= currentStackSize)
@@ -127,10 +134,32 @@ public class TileCrate extends Tile implements ISidedInventory
                             clearInventory();
                         }
                     }
-                    //Add to inventory
+                    //Add to player's inventory
                     else
                     {
-
+                        int itemsToRemove = player.isSneaking() ? 1 : 64;
+                        if (itemsToRemove <= currentStackSize)
+                        {
+                            heldItem = currentItem.copy();
+                            heldItem.stackSize = itemsToRemove;
+                            if (!player.inventory.addItemStackToInventory(heldItem))
+                            {
+                                InventoryUtility.dropItemStack(new Location(player), heldItem);
+                            }
+                            player.inventoryContainer.detectAndSendChanges();
+                            decreaseCount(itemsToRemove);
+                        }
+                        else
+                        {
+                            heldItem = currentItem.copy();
+                            heldItem.stackSize = currentStackSize;
+                            if (!player.inventory.addItemStackToInventory(heldItem))
+                            {
+                                InventoryUtility.dropItemStack(new Location(player), heldItem);
+                            }
+                            player.inventoryContainer.detectAndSendChanges();
+                            clearInventory();
+                        }
                     }
                 }
 
@@ -524,7 +553,7 @@ public class TileCrate extends Tile implements ISidedInventory
 
     public boolean isValid(ItemStack stack)
     {
-        return stack != null && (doesItemStackMatch(stack) || currentItem == null);
+        return stack != null && stack.stackSize > 0 && (doesItemStackMatch(stack) || currentItem == null);
     }
 
     /**
