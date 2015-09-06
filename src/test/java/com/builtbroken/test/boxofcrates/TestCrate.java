@@ -591,9 +591,44 @@ public class TestCrate extends AbstractTest
             assertTrue(side + ": Crate stack size should be 1", crate.currentStackSize == 72);
             crate.onPlayerActivated(player, side.ordinal(), new Pos(0, 4, 0));
             assertTrue(side + ": Player should be holding an apple", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
-            assertTrue(side + ": Player should be holding 1 apple", player.getHeldItem().stackSize == 64);
+            assertTrue(side + ": Player should be holding 64 apple", player.getHeldItem().stackSize == 64);
             assertTrue(side + ": Crate current stack should be null", areItemStacksEqual(crate.currentItem, new ItemStack(Items.apple)));
             assertTrue(side + ": Crate stack size should be zero", crate.currentStackSize == 8);
+            crate.clearInventory();
+        }
+
+        //Right click bottom half of crate with a items in crate, while sneaking
+        player.setSneaking(true);
+        for (ForgeDirection side : sides)
+        {
+            player.inventory.setInventorySlotContents(0, null);
+            crate.currentItem = new ItemStack(Items.apple);
+            crate.currentStackSize = 72;
+            crate.rebuildEntireInventory();
+            assertTrue(side + ": Player should be holding nothing", player.getHeldItem() == null);
+            assertTrue(side + ": Crate current stack should be an apple", areItemStacksEqual(crate.currentItem, new ItemStack(Items.apple)));
+            assertTrue(side + ": Crate stack size should be 1", crate.currentStackSize == 72);
+            crate.onPlayerActivated(player, side.ordinal(), new Pos(0, 4, 0));
+            assertTrue(side + ": Player should be holding an apple", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
+            assertTrue(side + ": Player should be holding 1 apple", player.getHeldItem().stackSize == 1);
+            assertTrue(side + ": Crate current stack should be null", areItemStacksEqual(crate.currentItem, new ItemStack(Items.apple)));
+            assertTrue(side + ": Crate stack size should be zero", crate.currentStackSize == 71);
+            crate.clearInventory();
+        }
+
+        //Right click top half of crate with a held item, with no items in crate while sneaking
+        for (ForgeDirection side : sides)
+        {
+            player.inventory.setInventorySlotContents(0, new ItemStack(Items.apple, 64));
+            assertTrue(side + ": Player should be holding an apple", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
+            assertTrue(side + ": Player should be holding 1 apple", player.getHeldItem().stackSize == 64);
+            assertTrue(side + ": Crate current stack should be null", crate.currentItem == null);
+            assertTrue(side + ": Crate stack size should be zero", crate.currentStackSize == 0);
+            crate.onPlayerActivated(player, side.ordinal(), new Pos(0, 5, 0));
+            assertTrue(side + ": Player should be holding an apple", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
+            assertTrue(side + ": Crate current stack should be an apple", areItemStacksEqual(crate.currentItem, new ItemStack(Items.apple)));
+            assertTrue(side + ": Crate stack size should be 1", crate.currentStackSize == 1);
+            assertTrue(side + ": Player should be holding 1 apple", player.getHeldItem().stackSize == 63);
             crate.clearInventory();
         }
     }
