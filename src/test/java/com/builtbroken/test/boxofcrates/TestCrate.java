@@ -631,6 +631,32 @@ public class TestCrate extends AbstractTest
             assertTrue(side + ": Player should be holding 1 apple", player.getHeldItem().stackSize == 63);
             crate.clearInventory();
         }
+
+        //Test complete fill of crate
+        player.capabilities.isCreativeMode = true;
+        player.inventory.setInventorySlotContents(0, new ItemStack(Items.apple));
+        assertTrue("Player should be holding an apple", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
+        assertTrue("Player should be holding 1 apple", player.getHeldItem().stackSize == 1);
+        assertTrue("Crate current stack should be null", crate.currentItem == null);
+        assertTrue("Crate stack size should be zero", crate.currentStackSize == 0);
+        crate.onPlayerActivated(player, 1, new Pos(0, 0, 0));
+        assertTrue("Player should be holding an apple", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
+        assertTrue("Crate current stack should be an apple", areItemStacksEqual(crate.currentItem, new ItemStack(Items.apple)));
+        assertTrue("Crate stack size should be 1", crate.currentStackSize == (crate.getInventoryStackLimit() * crate.getSizeInventory()));
+        assertTrue("Player should be holding 1 apple", player.getHeldItem().stackSize == 1);
+        crate.clearInventory();
+
+        player.capabilities.isCreativeMode = false;
+        player.inventory.setInventorySlotContents(0, new ItemStack(Items.apple));
+        assertTrue("Player should be holding an apple", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
+        assertTrue("Player should be holding 1 apple", player.getHeldItem().stackSize == 1);
+        assertTrue("Crate current stack should be null", crate.currentItem == null);
+        assertTrue("Crate stack size should be zero", crate.currentStackSize == 0);
+        crate.onPlayerActivated(player, 1, new Pos(0, 0, 0));
+        assertTrue("Player should be holding an apple", player.getHeldItem() == null);
+        assertTrue("Crate current stack should be an apple", areItemStacksEqual(crate.currentItem, new ItemStack(Items.apple)));
+        assertTrue("Crate stack size should be 1", crate.currentStackSize == 1);
+        crate.clearInventory();
     }
 
     /**
