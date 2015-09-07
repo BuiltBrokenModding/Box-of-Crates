@@ -52,138 +52,136 @@ public class TileCrate extends Tile implements ISidedInventory
     @Override
     protected boolean onPlayerRightClick(EntityPlayer player, int side, Pos hit)
     {
-        if (!super.onPlayerRightClick(player, side, hit))
-        {
-            ForgeDirection dir = ForgeDirection.getOrientation(side);
-            ItemStack heldItem = player.getHeldItem() != null ? player.getHeldItem().copy() : null;
-            boolean contentsChanged = false;
+        ForgeDirection dir = ForgeDirection.getOrientation(side);
+        ItemStack heldItem = player.getHeldItem() != null ? player.getHeldItem().copy() : null;
+        boolean contentsChanged = false;
 
-            if (dir != ForgeDirection.DOWN)
+        if (dir != ForgeDirection.DOWN)
+        {
+            //Add Items
+            if (dir == ForgeDirection.UP || hit.y() >= 5)
             {
-                //Add Items
-                if (dir == ForgeDirection.UP || hit.y() >= 5)
+                if (isValid(heldItem))
                 {
-                    if (isValid(heldItem))
+                    if (currentItem == null)
                     {
-                        if (currentItem == null)
+                        currentItem = heldItem.copy();
+                        currentItem.stackSize = 1;
+                    }
+                    int roomLeft = (getSizeInventory() * getInventoryStackLimit()) - currentStackSize;
+                    if (roomLeft > 0)
+                    {
+                        if (isServer())
                         {
-                            currentItem = heldItem.copy();
-                            currentItem.stackSize = 1;
-                        }
-                        int roomLeft = (getSizeInventory() * getInventoryStackLimit()) - currentStackSize;
-                        if (roomLeft > 0)
-                        {
-                            if (isServer())
+                            //Creative mode mass fill option
+                            if (dir == ForgeDirection.UP && player.capabilities.isCreativeMode)
                             {
-                                //Creative mode mass fill option
-                                if (dir == ForgeDirection.UP && player.capabilities.isCreativeMode)
+                                currentStackSize = getSizeInventory() * getInventoryStackLimit();
+                                contentsChanged = true;
+                                player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.creativeFilled")));
+                            }
+                            else
+                            {
+                                int heldStackSize = player.isSneaking() ? 1 : heldItem.stackSize;
+                                if (heldStackSize > roomLeft)
                                 {
-                                    currentStackSize = getSizeInventory() * getInventoryStackLimit();
-                                    contentsChanged = true;
-                                    player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.creativeFilled")));
+                                    heldItem.stackSize -= roomLeft;
+                                    increaseCount(roomLeft);
                                 }
                                 else
                                 {
-                                    int heldStackSize = player.isSneaking() ? 1 : heldItem.stackSize;
-                                    if (heldStackSize > roomLeft)
-                                    {
-                                        heldItem.stackSize -= roomLeft;
-                                        increaseCount(roomLeft);
-                                    }
-                                    else
-                                    {
-                                        heldItem.stackSize -= heldStackSize;
-                                        increaseCount(heldStackSize);
-                                    }
-                                    if (heldItem.stackSize > 0)
-                                        player.inventory.setInventorySlotContents(player.inventory.currentItem, heldItem);
-                                    else
-                                        player.inventory.setInventorySlotContents(player.inventory.currentItem, null);
-                                    player.inventoryContainer.detectAndSendChanges();
-                                    contentsChanged = true;
+                                    heldItem.stackSize -= heldStackSize;
+                                    increaseCount(heldStackSize);
                                 }
+                                if (heldItem.stackSize > 0)
+                                    player.inventory.setInventorySlotContents(player.inventory.currentItem, heldItem);
+                                else
+                                    player.inventory.setInventorySlotContents(player.inventory.currentItem, null);
+                                player.inventoryContainer.detectAndSendChanges();
+                                contentsChanged = true;
                             }
-                        }
-                        else if (isServer())
-                        {
-                            player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.error.full")));
                         }
                     }
                     else if (isServer())
                     {
-                        player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.error.invalidStack")));
+                        player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.error.full")));
                     }
                 }
-                //Remove Items
-                else if (currentItem != null && currentStackSize > 0)
+                else if (isServer())
                 {
-                    //Fill held item
-                    if (isValid(heldItem) && heldItem.stackSize < heldItem.getMaxStackSize())
-                    {
-                        int itemsToRemove = player.isSneaking() ? 1 : currentItem.getMaxStackSize() - heldItem.getMaxStackSize();
-                        if (itemsToRemove <= currentStackSize)
-                        {
-                            heldItem.stackSize += itemsToRemove;
-                            player.inventoryContainer.detectAndSendChanges();
-                            decreaseCount(itemsToRemove);
-                        }
-                        else
-                        {
-                            heldItem.stackSize += currentStackSize;
-                            player.inventoryContainer.detectAndSendChanges();
-                            clearInventory();
-                        }
-                    }
-                    //Add to player's inventory
-                    else
-                    {
-                        int itemsToRemove = player.isSneaking() ? 1 : 64;
-                        if (itemsToRemove <= currentStackSize)
-                        {
-                            heldItem = currentItem.copy();
-                            heldItem.stackSize = itemsToRemove;
-                            if (!player.inventory.addItemStackToInventory(heldItem))
-                            {
-                                InventoryUtility.dropItemStack(new Location(player), heldItem);
-                            }
-                            player.inventoryContainer.detectAndSendChanges();
-                            decreaseCount(itemsToRemove);
-                        }
-                        else
-                        {
-                            heldItem = currentItem.copy();
-                            heldItem.stackSize = currentStackSize;
-                            if (!player.inventory.addItemStackToInventory(heldItem))
-                            {
-                                InventoryUtility.dropItemStack(new Location(player), heldItem);
-                            }
-                            player.inventoryContainer.detectAndSendChanges();
-                            clearInventory();
-                        }
-                    }
+                    player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.error.invalidStack")));
                 }
-
-                if (contentsChanged)
-                {
-                    if (isServer())
-                    {
-                        //TODO send packet
-                    }
-                    else
-                    {
-                        //TODO maybe call a re-render of the tile?
-                    }
-                }
-                return true;
             }
-            else
+            //Remove Items
+            else if (currentItem != null && currentStackSize > 0)
+            {
+                //Fill held item
+                if (isValid(heldItem) && heldItem.stackSize < heldItem.getMaxStackSize())
+                {
+                    int itemsToRemove = player.isSneaking() ? 1 : heldItem.getMaxStackSize() - heldItem.stackSize;
+                    if (itemsToRemove <= currentStackSize)
+                    {
+                        heldItem.stackSize += itemsToRemove;
+                        player.inventory.setInventorySlotContents(player.inventory.currentItem, heldItem);
+                        player.inventoryContainer.detectAndSendChanges();
+                        decreaseCount(itemsToRemove);
+                    }
+                    else
+                    {
+                        heldItem.stackSize += currentStackSize;
+                        player.inventory.setInventorySlotContents(player.inventory.currentItem, heldItem);
+                        player.inventoryContainer.detectAndSendChanges();
+                        clearInventory();
+                    }
+                }
+                //Add to player's inventory
+                else
+                {
+                    int itemsToRemove = player.isSneaking() ? 1 : 64;
+                    if (itemsToRemove <= currentStackSize)
+                    {
+                        heldItem = currentItem.copy();
+                        heldItem.stackSize = itemsToRemove;
+                        if (!player.inventory.addItemStackToInventory(heldItem))
+                        {
+                            InventoryUtility.dropItemStack(new Location(player), heldItem);
+                        }
+                        player.inventoryContainer.detectAndSendChanges();
+                        decreaseCount(itemsToRemove);
+                    }
+                    else
+                    {
+                        heldItem = currentItem.copy();
+                        heldItem.stackSize = currentStackSize;
+                        if (!player.inventory.addItemStackToInventory(heldItem))
+                        {
+                            InventoryUtility.dropItemStack(new Location(player), heldItem);
+                        }
+                        player.inventoryContainer.detectAndSendChanges();
+                        clearInventory();
+                    }
+                }
+            }
+
+            if (contentsChanged)
             {
                 if (isServer())
-                    player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.bottom.error")));
-                return true;
+                {
+                    //TODO send packet
+                }
+                else
+                {
+                    //TODO maybe call a re-render of the tile?
+                }
             }
+            return true;
         }
-        return true;
+        else
+        {
+            if (isServer())
+                player.addChatComponentMessage(new ChatComponentText(LanguageUtility.getLocalName("crate.onRightClick.bottom.error")));
+            return true;
+        }
     }
 
     /**

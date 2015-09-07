@@ -53,6 +53,7 @@ public class TestCrate extends AbstractTest
     {
         //Mainly testing stuff that should work but needs tested for code coverage percentage
         TileCrate crate = new TileCrate();
+        crate.setWorldObj(world);
         assertTrue("Should have received a new instance of a crate", crate.newTile() instanceof TileCrate);
         String excpected = "Crate[0x 0y 0z]" + crate.hashCode();
         String re = crate.toString();
@@ -60,7 +61,8 @@ public class TestCrate extends AbstractTest
 
         //Bull shit coverage junk
         crate.openInventory();
-        crate.clearInventory();
+        crate.closeInventory();
+        crate.firstTick();
         assertTrue(crate.hasCustomInventoryName());
         assertEquals(crate.getInventoryName(), "crate.container");
     }
@@ -237,6 +239,13 @@ public class TestCrate extends AbstractTest
 
         assertFalse("Null should not be valid", crate.isValid(null));
         assertTrue("Apple should be valid", crate.isValid(new ItemStack(Items.apple)));
+        assertFalse("Stack size of zero should not be allowed", crate.isValid(new ItemStack(Items.apple, 0)));
+
+        crate.currentItem = new ItemStack(Items.gold_ingot);
+        assertFalse("Apple should be invalid as the current stack is a gold ingot", crate.isValid(new ItemStack(Items.apple)));
+        assertTrue("Gold ingot should match itself", crate.isValid(new ItemStack(Items.gold_ingot)));
+        assertTrue("Stack size shouldn't matter", crate.isValid(new ItemStack(Items.gold_ingot, 10)));
+        assertFalse("Meta shouldn't match", crate.isValid(new ItemStack(Items.gold_ingot, 10, 1)));
     }
 
     /** Tests {@link TileCrate#isItemValidForSlot(int, ItemStack)} */
@@ -594,6 +603,41 @@ public class TestCrate extends AbstractTest
             assertTrue(side + ": Player should be holding 64 apple", player.getHeldItem().stackSize == 64);
             assertTrue(side + ": Crate current stack should be null", areItemStacksEqual(crate.currentItem, new ItemStack(Items.apple)));
             assertTrue(side + ": Crate stack size should be zero", crate.currentStackSize == 8);
+            crate.clearInventory();
+        }
+
+        //Right click bottom half of crate with a items in crate, and items held
+        for (ForgeDirection side : sides)
+        {
+            player.inventory.setInventorySlotContents(0, new ItemStack(Items.apple, 3));
+            crate.currentItem = new ItemStack(Items.apple);
+            crate.currentStackSize = 72;
+            crate.rebuildEntireInventory();
+            assertTrue(side + ": Player should be holding nothing", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
+            assertTrue(side + ": Crate current stack should be an apple", areItemStacksEqual(crate.currentItem, new ItemStack(Items.apple)));
+            assertTrue(side + ": Crate stack size should be 1", crate.currentStackSize == 72);
+            crate.onPlayerActivated(player, side.ordinal(), new Pos(0, 4, 0));
+            assertTrue(side + ": Player should be holding an apple", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
+            assertTrue(side + ": Player should be holding 64 apple but is holding " + player.getHeldItem().stackSize, player.getHeldItem().stackSize == 64);
+            assertTrue(side + ": Crate current stack should still have apples in it", areItemStacksEqual(crate.currentItem, new ItemStack(Items.apple)));
+            assertTrue(side + ": Crate stack size should be zero", crate.currentStackSize == 11);
+            crate.clearInventory();
+        }
+
+        //Right click bottom half of crate, items in crate, items held, not enough to fill entire held item, ending with crate empty
+        for (ForgeDirection side : sides)
+        {
+            player.inventory.setInventorySlotContents(0, new ItemStack(Items.apple, 3));
+            crate.currentItem = new ItemStack(Items.apple);
+            crate.currentStackSize = 2;
+            crate.rebuildEntireInventory();
+            assertTrue(side + ": Player should be holding nothing", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
+            assertTrue(side + ": Crate current stack should be an apple", areItemStacksEqual(crate.currentItem, new ItemStack(Items.apple)));
+            assertTrue(side + ": Crate stack size should be 1", crate.currentStackSize == 2);
+            crate.onPlayerActivated(player, side.ordinal(), new Pos(0, 4, 0));
+            assertTrue(side + ": Player should be holding an apple", areItemStacksEqual(player.getHeldItem(), new ItemStack(Items.apple)));
+            assertTrue(side + ": Player should be holding 64 apple but is holding " + player.getHeldItem().stackSize, player.getHeldItem().stackSize == 5);
+            assertTrue(side + ": Crate current stack should be null", crate.currentItem == null);
             crate.clearInventory();
         }
 
