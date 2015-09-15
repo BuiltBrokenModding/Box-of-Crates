@@ -1,6 +1,7 @@
 package com.builtbroken.test.boxofcrates;
 
 import com.builtbroken.boxofcrates.content.crate.TileCrate;
+import com.builtbroken.mc.core.Engine;
 import com.builtbroken.mc.lib.transform.vector.Pos;
 import com.builtbroken.mc.prefab.items.ItemStackWrapper;
 import com.builtbroken.mc.prefab.tile.entity.TileEntityBase;
@@ -106,8 +107,11 @@ public class TestCrate extends AbstractTest
 
                 try
                 {
+                    Engine e = Engine.instance;
+                    Engine.instance = null;
                     crate.setInventorySlotContents(-1, new ItemStack(Items.apple));
                     fail("Crate should have throw an exception for setting negative slot");
+                    Engine.instance = e;
                 } catch (RuntimeException e)
                 {
                     //This should happen
@@ -119,8 +123,11 @@ public class TestCrate extends AbstractTest
                 }
                 try
                 {
+                    Engine e = Engine.instance;
+                    Engine.instance = null;
                     crate.setInventorySlotContents(crate.getSizeInventory(), new ItemStack(Items.apple));
                     fail("Crate should have throw an exception for setting negative slot");
+                    Engine.instance = e;
                 } catch (RuntimeException e)
                 {
                     //This should happen
