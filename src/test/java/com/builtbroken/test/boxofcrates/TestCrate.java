@@ -5,56 +5,34 @@ import com.builtbroken.mc.core.Engine;
 import com.builtbroken.mc.lib.transform.vector.Pos;
 import com.builtbroken.mc.prefab.items.ItemStackWrapper;
 import com.builtbroken.mc.prefab.tile.entity.TileEntityBase;
-import com.builtbroken.mc.testing.junit.AbstractTest;
 import com.builtbroken.mc.testing.junit.VoltzTestRunner;
-import com.builtbroken.mc.testing.junit.server.FakeDedicatedServer;
-import com.builtbroken.mc.testing.junit.testers.TestPlayer;
-import com.builtbroken.mc.testing.junit.world.FakeWorldServer;
-import com.mojang.authlib.GameProfile;
+import com.builtbroken.mc.testing.tile.AbstractTileTest;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.util.ForgeDirection;
 import org.junit.runner.RunWith;
-
-import java.io.File;
 
 /**
  * JUnit test for {@link com.builtbroken.boxofcrates.content.crate.TileCrate}
  * Created by Dark on 9/3/2015.
  */
 @RunWith(VoltzTestRunner.class)
-public class TestCrate extends AbstractTest
+public class TestCrate extends AbstractTileTest<TileCrate>
 {
-    //TODO create a test group to run base level code that all tiles contain
-    /** World to do testing in */
-    private static FakeWorldServer world;
-    /** Player to use for testing interaction methods */
-    private static TestPlayer player;
-
-    @Override
-    public void setUpForEntireClass()
+    public TestCrate() throws IllegalAccessException, InstantiationException
     {
-        //There is a possibility this has some lingering data attached to it due to MC's data flow
-        MinecraftServer server = new FakeDedicatedServer(new File(FakeWorldServer.baseFolder, "CrateTester"));
-        world = FakeWorldServer.newWorld(server, "TestCrate");
-        player = new TestPlayer(server, world, new GameProfile(null, "CrateTester"));
-    }
-
-    @Override
-    public void setUpForTest(String name)
-    {
-        player.reset();
+        super("crate", TileCrate.class);
+        this.autoPlaceBlock = true;
     }
 
     /** Tests {@link TileCrate#TileCrate()}, {@link TileCrate#newTile()} ()}, {@link TileCrate#toString()} ()} */
     public void testInit()
     {
         //Mainly testing stuff that should work but needs tested for code coverage percentage
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         assertTrue("Should have received a new instance of a crate", crate.newTile() instanceof TileCrate);
         String excpected = "Crate[0x 0y 0z]" + crate.hashCode();
         String re = crate.toString();
@@ -78,8 +56,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#getStackInSlot(int)} and {@link TileCrate#setInventorySlotContents(int, ItemStack)} */
     public void testInventorySlots()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         for (TileCrate.CrateType type : TileCrate.CrateType.values())
         {
             crate.crateType = type;
@@ -144,8 +122,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#getStackInSlotOnClosing(int)} */
     public void testGetStackInSlotOnClosing()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         for (int i = 0; i < crate.getSizeInventory(); i++)
         {
             crate.setInventorySlotContents(i, new ItemStack(Items.apple, 64));
@@ -163,8 +141,7 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#canInsertItem(int, ItemStack, int)} */
     public void testCanInsert()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
 
         //Check sanity
         assertTrue("Inventory should be empty", crate.inventory.isEmpty());
@@ -181,8 +158,7 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#canExtractItem(int, ItemStack, int)} */
     public void testCanExtract()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
 
         for (int i = 0; i < crate.getSizeInventory(); i++)
         {
@@ -197,7 +173,11 @@ public class TestCrate extends AbstractTest
     {
         for (TileCrate.CrateType type : TileCrate.CrateType.values())
         {
-            TileCrate crate = new TileCrate();
+            world.setBlockToAir(0, 0, 0);
+            world.tick();
+            world.setBlock(0, 0, 0, block);
+            TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
             crate.crateType = type;
             crate.setWorldObj(world);
             //valid inputs, normal opteration only 0 -> 5 should be passed in
@@ -214,8 +194,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#doesItemStackMatch(ItemStack)} */
     public void testDoesItemStackMatch()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate)world.getTileEntity(0, 0, 0);
+
         assertTrue("Current item should init null", crate.currentItem == null);
 
         //Test null
@@ -241,8 +221,7 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#isValid(ItemStack)} */
     public void testIsValid()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate)world.getTileEntity(0, 0, 0);
 
         assertFalse("Null should not be valid", crate.isValid(null));
         assertTrue("Apple should be valid", crate.isValid(new ItemStack(Items.apple)));
@@ -260,7 +239,11 @@ public class TestCrate extends AbstractTest
     {
         for (TileCrate.CrateType type : TileCrate.CrateType.values())
         {
-            TileCrate crate = new TileCrate();
+            world.setBlockToAir(0, 0, 0);
+            world.tick();
+            world.setBlock(0, 0, 0, block);
+            TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
             crate.crateType = type;
             crate.setWorldObj(world);
             for (int slot = 0; slot < crate.getSizeInventory(); slot++)
@@ -283,8 +266,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#getInventoryStackLimit()} */
     public void testGetInventoryStackLimit()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         assertTrue("Inventory stack limit should be 64 by default", crate.getInventoryStackLimit() == 64);
         crate.currentItem = new ItemStack(Items.apple);
         assertTrue("Inventory stack limit should be 64 by default", crate.getInventoryStackLimit() == Items.apple.getItemStackLimit());
@@ -295,8 +278,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#isUseableByPlayer(EntityPlayer)} */
     public void testIsUseableByPlayer()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         assertTrue("Player should be able to access the tile for zero distance", crate.isUseableByPlayer(player));
         player.setLocationAndAngles(0, 6, 0, 0, 0);
         assertFalse(crate.isUseableByPlayer(player));
@@ -305,8 +288,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#decrStackSize(int, int)} */
     public void testDecrStackSize()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         assertTrue("Slot 0 should be empty", crate.getStackInSlot(0) == null);
         assertTrue("Should return null as slot is empty", crate.decrStackSize(0, 1) == null);
         crate.setInventorySlotContents(0, new ItemStack(Items.apple, 64));
@@ -337,8 +320,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#clearInventory()} */
     public void testClearInventory()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         crate.currentItem = new ItemStack(Items.record_11);
         crate.currentStackSize = 10;
         crate.inventory.put(1, new ItemStack(Items.record_13));
@@ -351,8 +334,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#getNextEmptySlot()} */
     public void testGetNextEmptySlot()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         for (int i = 0; i < crate.getSizeInventory(); i++)
         {
             int slot = crate.getNextEmptySlot();
@@ -380,7 +363,7 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#rebuildEntireInventory()} */
     public void testRebuildEntireInventory()
     {
-        TileCrate crate = new TileCrate();
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
         crate.setWorldObj(world);
         ItemStack stack;
 
@@ -459,8 +442,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#increaseCount(int)} */
     public void testIncreaseCount()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         assertTrue(crate.currentStackSize == 0);
 
         //Can't accept neg numbers
@@ -505,8 +488,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#decreaseCount(int)} */
     public void testDecreaseCount()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         assertTrue(crate.currentStackSize == 0);
 
         //Can't accept neg numbers
@@ -548,8 +531,8 @@ public class TestCrate extends AbstractTest
     /** Tests {@link TileCrate#onPlayerRightClick(EntityPlayer, int, Pos)} */
     public void testOnPlayerRightClick()
     {
-        TileCrate crate = new TileCrate();
-        crate.setWorldObj(world);
+        TileCrate crate = (TileCrate) world.getTileEntity(0, 0, 0);
+
         final ForgeDirection[] sides = new ForgeDirection[]{ForgeDirection.NORTH, ForgeDirection.EAST, ForgeDirection.SOUTH, ForgeDirection.WEST};
 
         //Test to ensure right click with empty hand and empty crate does nothing
