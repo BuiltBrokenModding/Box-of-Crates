@@ -1,6 +1,6 @@
 package com.builtbroken.boxofcrates.content.prefab;
 
-import com.builtbroken.mc.api.items.IItemLock;
+import com.builtbroken.mc.api.items.tools.IItemLock;
 import com.builtbroken.mc.api.tile.ITileLock;
 import com.builtbroken.mc.prefab.tile.TileInv;
 import net.minecraft.block.material.Material;
