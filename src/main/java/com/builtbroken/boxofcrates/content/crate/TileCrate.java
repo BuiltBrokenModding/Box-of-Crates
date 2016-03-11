@@ -34,6 +34,7 @@ public class TileCrate extends Tile implements ISidedInventory
 
     /** Main inventory map */
     public HashMap<Integer, ItemStack> inventory = new HashMap();
+    //TODO replace with arrayList, or single stack
     /** Set of slots that have space to add items */
     public SortedSet<Integer> slotsWithRoomStack = new TreeSet();
 
