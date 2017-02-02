@@ -326,7 +326,7 @@ public class TileCrate extends Tile implements ISidedInventory
                             nextEmptySlot = i;
                     }
                 }
-                //We have no items left but our slot stack is not fully initialized, lets add remaining slots to que
+                //We have no items left but our slot stack is not fully initialized, lets add remaining slots to add
                 else
                 {
                     if (nextEmptySlot == -1)
