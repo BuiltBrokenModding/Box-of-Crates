@@ -4,6 +4,7 @@ import com.builtbroken.mc.core.Engine;
 import com.builtbroken.mc.core.network.IPacketIDReceiver;
 import com.builtbroken.mc.core.network.packet.PacketTile;
 import com.builtbroken.mc.core.network.packet.PacketType;
+import com.builtbroken.mc.prefab.inventory.ExternalInventory;
 import com.builtbroken.mc.prefab.items.ItemStackWrapper;
 import com.builtbroken.mc.prefab.tile.entity.TileEntityInv;
 import cpw.mods.fml.common.network.ByteBufUtils;
@@ -164,6 +165,12 @@ public class TileChest extends TileEntityInv implements IPacketIDReceiver
             }
         }
         return false;
+    }
+
+    @Override
+    protected IInventory createInventory()
+    {
+        return new ExternalInventory(this, 36);
     }
 
     @Override
