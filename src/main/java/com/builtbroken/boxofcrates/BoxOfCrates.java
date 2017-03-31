@@ -1,8 +1,5 @@
 package com.builtbroken.boxofcrates;
 
-import com.builtbroken.boxofcrates.content.chest.BlockChest;
-import com.builtbroken.boxofcrates.content.chest.ItemBlockChest;
-import com.builtbroken.boxofcrates.content.chest.TileChest;
 import com.builtbroken.mc.lib.mod.AbstractMod;
 import com.builtbroken.mc.lib.mod.AbstractProxy;
 import cpw.mods.fml.common.Mod;
@@ -40,10 +37,6 @@ public class BoxOfCrates extends AbstractMod
     public void preInit(FMLPreInitializationEvent event)
     {
         super.preInit(event);
-
-        blockFilteredChest = new BlockChest();
-        GameRegistry.registerBlock(blockFilteredChest, ItemBlockChest.class, "filteredChest");
-        GameRegistry.registerTileEntity(TileChest.class, "filteredChest");
     }
 
     @Mod.EventHandler

@@ -2,7 +2,7 @@ package com.builtbroken.test.boxofcrates;
 
 import com.builtbroken.boxofcrates.content.crate.TileCrate;
 import com.builtbroken.mc.core.Engine;
-import com.builtbroken.mc.lib.transform.vector.Pos;
+import com.builtbroken.mc.imp.transform.vector.Pos;
 import com.builtbroken.mc.prefab.items.ItemStackWrapper;
 import com.builtbroken.mc.prefab.tile.entity.TileEntityBase;
 import com.builtbroken.mc.testing.junit.VoltzTestRunner;
